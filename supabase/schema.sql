@@ -1,4 +1,6 @@
--- Run this in the Supabase SQL editor (Dashboard → SQL Editor → New query).
+-- Already applied to project risiwzlmheuikwwtjqjd as migration
+-- "create_messages_table_with_rls". Kept here as the source of truth; re-run it
+-- in the SQL editor when setting up a fresh project.
 -- auth.users is managed by Supabase Auth; this is the app's own table.
 
 create table if not exists public.messages (
@@ -16,14 +18,16 @@ create index if not exists messages_user_id_created_at_idx
 -- The service role key used by /api functions bypasses these policies.
 alter table public.messages enable row level security;
 
+-- auth.uid() is wrapped in a subselect so Postgres evaluates it once per query
+-- rather than once per row.
 create policy "read own messages"
   on public.messages for select
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 create policy "insert own messages"
   on public.messages for insert
-  with check (auth.uid() = user_id);
+  with check ((select auth.uid()) = user_id);
 
 create policy "delete own messages"
   on public.messages for delete
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
