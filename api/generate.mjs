@@ -1,4 +1,4 @@
-import { ai, DEFAULT_MODEL } from './_lib/gemini.mjs'
+import { DEFAULT_MODEL, generateWithRetry } from './_lib/gemini.mjs'
 import { applyCors } from './_lib/http.mjs'
 import { getUser, supabaseAdmin } from './_lib/supabase.mjs'
 
@@ -15,10 +15,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: DEFAULT_MODEL,
-      contents: prompt,
-    })
+    const response = await generateWithRetry({ model: DEFAULT_MODEL, contents: prompt })
     const text = response.text
 
     // Example of writing to Postgres. Drop this block if you don't need history.
@@ -30,6 +27,12 @@ export default async function handler(req, res) {
     res.status(200).json({ text })
   } catch (err) {
     console.error(err)
+
+    // Distinguish "Gemini is busy, try again" from a real fault, so the UI can
+    // say something more useful than a generic failure.
+    if (err?.status === 429 || err?.status === 503) {
+      return res.status(503).json({ error: 'Gemini is busy right now — try again in a moment.' })
+    }
     res.status(500).json({ error: 'Generation failed' })
   }
 }

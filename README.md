@@ -106,3 +106,10 @@ export default function History() {
   `expo start` — Metro caches the config.
 - Free Supabase projects pause after ~7 days idle. If `/api` starts 500ing, check
   the dashboard.
+- Gemini model IDs retire without warning. A 404 from `/api/generate` usually
+  means `DEFAULT_MODEL` in `api/_lib/gemini.mjs` is stale — list what your key
+  can reach with
+  `curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"`.
+- Free-tier Gemini returns 503 under load fairly often. `generateWithRetry`
+  backs off and retries; persistent 503s surface to the client as "Gemini is
+  busy right now."
