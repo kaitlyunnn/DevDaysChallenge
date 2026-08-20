@@ -59,10 +59,10 @@ anyone who installs it. Never put a secret behind that prefix.
 | Variable | Where | Public? |
 | --- | --- | --- |
 | `EXPO_PUBLIC_SUPABASE_URL` | app | yes |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | app | yes — RLS is what protects data |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | app | yes — RLS is what protects data |
 | `EXPO_PUBLIC_API_URL` | app | yes — absolute `/api` base for native |
 | `SUPABASE_URL` | `/api` | no |
-| `SUPABASE_SERVICE_ROLE_KEY` | `/api` | **no — bypasses RLS** |
+| `SUPABASE_SECRET_KEY` | `/api` | **no — bypasses RLS** |
 | `GEMINI_API_KEY` | `/api` | **no** |
 
 `EXPO_PUBLIC_API_URL` is only needed on phones. A phone has no origin to resolve

@@ -15,7 +15,7 @@ create index if not exists messages_user_id_created_at_idx
   on public.messages (user_id, created_at desc);
 
 -- Row Level Security: each user only ever sees their own rows.
--- The service role key used by /api functions bypasses these policies.
+-- The secret key used by /api functions bypasses these policies.
 alter table public.messages enable row level security;
 
 -- auth.uid() is wrapped in a subselect so Postgres evaluates it once per query

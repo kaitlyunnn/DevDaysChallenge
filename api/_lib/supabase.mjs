@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
 const url = process.env.SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const secretKey = process.env.SUPABASE_SECRET_KEY
 
 /**
  * Admin client — bypasses Row Level Security. Server-side only.
  */
-export const supabaseAdmin = createClient(url, serviceKey, {
+export const supabaseAdmin = createClient(url, secretKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
