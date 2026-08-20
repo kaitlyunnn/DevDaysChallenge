@@ -1,92 +1,108 @@
-# Boilerplate
+# DevDaysChallenge
 
-React + Node (Vercel functions) + Supabase + Gemini.
+One codebase → iOS, Android, and web. Expo + Supabase + Gemini, deployed on Vercel.
 
 ## Stack
 
 | Piece | Choice |
 | --- | --- |
-| Frontend | React 19 + Vite |
+| App (all 3 platforms) | Expo SDK 57 + Expo Router 5 |
+| Web rendering | react-native-web (static export) |
 | Backend | Node serverless functions in `/api` |
 | Auth + DB | Supabase (Postgres) |
-| Hosting | Vercel |
 | AI | Gemini via `@google/genai` |
+| Hosting | Vercel |
 
-The Gemini key lives only on the server. The browser calls `/api/generate` with
-the user's Supabase access token; the function verifies it before doing anything.
+The Gemini key lives only on the server. The app calls `/api/generate` with the
+user's Supabase access token; the function verifies it before spending a request.
 
 ## Layout
 
 ```
-api/                 Node backend (one file = one endpoint)
-  _lib/supabase.js   admin client + getUser(req) token check
-  _lib/gemini.js     Gemini client
-  generate.js        POST — auth'd Gemini call, logs to Postgres
-  me.js              GET  — current user
-  health.js          GET  — env sanity check
-src/
-  lib/supabase.js    browser Supabase client
-  lib/api.js         fetch wrapper that attaches the auth token
-  components/        Auth.jsx, Chat.jsx
+app/                 Expo Router — each file is a screen AND a web URL
+  _layout.jsx        root layout, wraps everything in SessionProvider
+  index.jsx          "/"        Gemini prompt screen (requires auth)
+  sign-in.jsx        "/sign-in" email + password
+lib/
+  supabase.js        platform-aware client (AsyncStorage on native)
+  api.js             fetch wrapper, attaches auth token
+  auth.jsx           SessionProvider / useSession
+  theme.js           shared StyleSheet
+api/                 Vercel Node functions (.mjs = ES modules)
+  _lib/              supabase admin + getUser, gemini client, CORS
+  generate.mjs       POST — auth'd Gemini call, logs to Postgres
+  me.mjs             GET  — current user
+  health.mjs         GET  — env sanity check
 supabase/schema.sql  messages table + RLS policies
 ```
 
-## Setup
+## Run it
 
-1. **Install**
+```bash
+npm install
+cp .env.example .env.local   # then fill in the values
+npx expo start
+```
 
-   ```bash
-   npm install
-   ```
+Then pick a target from the terminal:
 
-2. **Supabase** — create a project at [supabase.com](https://supabase.com), then
-   run `supabase/schema.sql` in the SQL editor. Grab the URL, anon key, and
-   service role key from Project Settings → API.
+- **`w`** — opens the website in your browser
+- **Scan the QR code** with [Expo Go](https://expo.dev/go) on your phone — the app
+  runs on the device, no Xcode or Android Studio needed
+- **`i`** / **`a`** — simulator, if you have one installed
 
-3. **Gemini** — get a key at [aistudio.google.com](https://aistudio.google.com/apikey).
+## Environment variables
 
-4. **Env**
+Anything prefixed `EXPO_PUBLIC_` is **bundled into the app** and readable by
+anyone who installs it. Never put a secret behind that prefix.
 
-   ```bash
-   cp .env.example .env.local
-   ```
+| Variable | Where | Public? |
+| --- | --- | --- |
+| `EXPO_PUBLIC_SUPABASE_URL` | app | yes |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | app | yes — RLS is what protects data |
+| `EXPO_PUBLIC_API_URL` | app | yes — absolute `/api` base for native |
+| `SUPABASE_URL` | `/api` | no |
+| `SUPABASE_SERVICE_ROLE_KEY` | `/api` | **no — bypasses RLS** |
+| `GEMINI_API_KEY` | `/api` | **no** |
 
-   Fill it in. `VITE_*` vars are public (shipped to the browser); everything else
-   is server-only. Never expose `SUPABASE_SERVICE_ROLE_KEY`.
-
-5. **Run** — `vercel dev` serves the React app and `/api` together:
-
-   ```bash
-   npm i -g vercel
-   npm run dev
-   ```
-
-   `npm run dev:web` runs Vite alone, but `/api` calls will 404.
+`EXPO_PUBLIC_API_URL` is only needed on phones. A phone has no origin to resolve
+`/api/generate` against, so it needs the full `https://…vercel.app` URL. On web
+it stays blank and requests are same-origin.
 
 ## Deploy
 
-```bash
-git init && git add -A && git commit -m "Initial commit"
-gh repo create <name> --private --source=. --push
-```
+Push to `main` — Vercel builds `npx expo export --platform web` into `dist/` and
+picks up `api/*.mjs` as functions automatically (see `vercel.json`).
 
-Import the repo at [vercel.com/new](https://vercel.com/new). Vite is detected
-automatically. Add all five non-`VITE_` vars **and** the two `VITE_` vars under
-Settings → Environment Variables, then redeploy.
+Add all six variables under Settings → Environment Variables, then redeploy.
 
-Finally, in Supabase → Authentication → URL Configuration, add your Vercel domain
-to Site URL and Redirect URLs so email confirmation links work.
+In Supabase → Authentication → URL Configuration, add your Vercel domain plus
+`devdays://` to the redirect allow-list so email confirmation works on both web
+and device.
 
-## Adding an endpoint
+## Adding a screen
 
-Drop a file in `api/`. `api/foo.js` becomes `/api/foo`:
+Drop a file in `app/`. `app/history.jsx` becomes the `/history` route on web and
+a pushable screen on native:
 
-```js
-import { getUser } from './_lib/supabase.js'
+```jsx
+import { Text, View } from 'react-native'
+import { shared } from '../lib/theme'
 
-export default async function handler(req, res) {
-  const user = await getUser(req)
-  if (!user) return res.status(401).json({ error: 'Unauthorized' })
-  res.status(200).json({ hello: user.email })
+export default function History() {
+  return (
+    <View style={shared.container}>
+      <Text style={shared.title}>History</Text>
+    </View>
+  )
 }
 ```
+
+## Gotchas
+
+- No HTML tags, no CSS files, no `className`. Use `View`/`Text`/`Pressable` and
+  `StyleSheet`. A bare string must be inside `<Text>`.
+- Changing `app.json` or installing a native module requires restarting
+  `expo start` — Metro caches the config.
+- Free Supabase projects pause after ~7 days idle. If `/api` starts 500ing, check
+  the dashboard.

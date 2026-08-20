@@ -1,7 +1,9 @@
-import { ai, DEFAULT_MODEL } from './_lib/gemini.js'
-import { getUser, supabaseAdmin } from './_lib/supabase.js'
+import { ai, DEFAULT_MODEL } from './_lib/gemini.mjs'
+import { applyCors } from './_lib/http.mjs'
+import { getUser, supabaseAdmin } from './_lib/supabase.mjs'
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const user = await getUser(req)
